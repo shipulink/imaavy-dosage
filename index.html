@@ -136,7 +136,8 @@
 
         const removeNsMl = Math.max(0, volMl - (FINAL_VOL_ML - NS_BAG_ML));
 
-        return { doseMg, volMl, largeVials, smallVials, lastVialMl, wasteMg, removeNsMl };
+        const wasteMl = wasteMg / CONC_MG_PER_ML;
+        return { doseMg, volMl, largeVials, smallVials, lastVialMl, wasteMg, wasteMl, removeNsMl };
       }, [kg, doseType]);
 
       return (
@@ -185,7 +186,8 @@
                   <Row label="1200 mg vials" value={results ? formatInt(results.largeVials) : "—"} />
                   <Row label="300 mg vials" value={results ? formatInt(results.smallVials) : "—"} />
                   <Row label="volume from last vial" value={results && results.wasteMg > 0 ? `${formatMl(results.lastVialMl)} mL` : "—"} />
-                  <Row label="waste" value={results && results.wasteMg > 0 ? `${formatInt(results.wasteMg)} mg` : "—"} />
+                  <Row label="waste mass" value={results && results.wasteMg > 0 ? `${formatInt(results.wasteMg)} mg` : "—"} />
+                  <Row label="waste volume" value={results && results.wasteMl > 0 ? `${formatMl(results.wasteMl)} mL` : "—"} />
                   <Row label="NS to remove" value={results ? `${formatMl(results.removeNsMl)} mL` : "—"} />
                 </tbody>
               </table>
