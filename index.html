@@ -75,10 +75,11 @@
     // Constants
     const LOADING_MG_PER_KG = 30;
     const MAINTENANCE_MG_PER_KG = 15;
-    const VIAL_MG = 400;
-    const CONC_MG_PER_ML = 20;
-    const VIAL_ML = VIAL_MG / CONC_MG_PER_ML; // 20 mL
-    const MAX_DOSE_MG = 1200;
+    const CONC_MG_PER_ML = 185;
+    const LARGE_VIAL_MG = 1200;
+    const LARGE_VIAL_ML = LARGE_VIAL_MG / CONC_MG_PER_ML;
+    const SMALL_VIAL_MG = 300;
+    const SMALL_VIAL_ML = SMALL_VIAL_MG / CONC_MG_PER_ML;
     const NS_BAG_ML = 100;
     const FINAL_VOL_ML = 125;
 
@@ -107,20 +108,35 @@
       const results = useMemo(() => {
         if (kg === null) return null;
         const mgPerKg = doseType === "loading" ? LOADING_MG_PER_KG : MAINTENANCE_MG_PER_KG;
-        const doseMgRaw = kg * mgPerKg;
-        const doseMg = Math.min(doseMgRaw, MAX_DOSE_MG);
+        const doseMg = kg * mgPerKg;
         const volMl = doseMg / CONC_MG_PER_ML;
 
-        const fullVials = Math.floor(doseMg / VIAL_MG);
-        const vials = Math.ceil(doseMg / VIAL_MG);
-        const remainderMg = doseMg % VIAL_MG;
-        const lastVialMl = remainderMg / CONC_MG_PER_ML;
-        const wasteMl = remainderMg === 0 ? 0 : VIAL_ML - lastVialMl;
-        const wasteMg = remainderMg === 0 ? 0 : VIAL_MG - remainderMg;
+        const fullLargeVials = Math.floor(doseMg / LARGE_VIAL_MG);
+        const remainder = doseMg - fullLargeVials * LARGE_VIAL_MG;
+
+        let largeVials, smallVials, lastVialMl, wasteMg;
+        if (remainder === 0) {
+          largeVials = fullLargeVials;
+          smallVials = 0;
+          lastVialMl = 0;
+          wasteMg = 0;
+        } else if (remainder > SMALL_VIAL_MG * 3) {
+          // 4+ small vials would equal or exceed 1 large vial — use partial large instead
+          largeVials = fullLargeVials + 1;
+          smallVials = 0;
+          lastVialMl = remainder / CONC_MG_PER_ML;
+          wasteMg = LARGE_VIAL_MG - remainder;
+        } else {
+          largeVials = fullLargeVials;
+          smallVials = Math.ceil(remainder / SMALL_VIAL_MG);
+          const lastSmallUsedMg = remainder - (smallVials - 1) * SMALL_VIAL_MG;
+          lastVialMl = lastSmallUsedMg / CONC_MG_PER_ML;
+          wasteMg = SMALL_VIAL_MG - lastSmallUsedMg;
+        }
 
         const removeNsMl = Math.max(0, volMl - (FINAL_VOL_ML - NS_BAG_ML));
 
-        return { doseMg, volMl, fullVials, vials, lastVialMl, wasteMl, wasteMg, removeNsMl };
+        return { doseMg, volMl, largeVials, smallVials, lastVialMl, wasteMg, removeNsMl };
       }, [kg, doseType]);
 
       return (
@@ -166,9 +182,10 @@
                 <tbody>
                   <Row label="Imaavy dose" value={results ? `${formatInt(results.doseMg)} mg` : "—"} />
                   <Row label="Imaavy volume" value={results ? `${formatMl(results.volMl)} mL` : "—"} />
-                  <Row label="vials" value={results ? formatInt(results.vials) : "—"} />
-                  <Row label="volume from last vial" value={results && results.lastVialMl !== 0 ? `${formatMl(results.lastVialMl)} mL` : "—"} />
-                  <Row label="waste" value={results ? `${formatMl(results.wasteMg)} mg` : "—"} />
+                  <Row label="1200 mg vials" value={results ? formatInt(results.largeVials) : "—"} />
+                  <Row label="300 mg vials" value={results ? formatInt(results.smallVials) : "—"} />
+                  <Row label="volume from last vial" value={results && results.wasteMg > 0 ? `${formatMl(results.lastVialMl)} mL` : "—"} />
+                  <Row label="waste" value={results && results.wasteMg > 0 ? `${formatInt(results.wasteMg)} mg` : "—"} />
                   <Row label="NS to remove" value={results ? `${formatMl(results.removeNsMl)} mL` : "—"} />
                 </tbody>
               </table>
@@ -176,8 +193,8 @@
                 <ul>
                   <li>Loading dose: 30 mg/kg</li>
                   <li>Maintenance dose: 15 mg/kg</li>
-                  <li>400 mg vials @ 20 mg/mL (20 mL)</li>                  
-                  <li>Dose capped at 1200 mg (3 vials)</li>
+                  <li>1200 mg vials @ 185 mg/mL (6.5 mL)</li>
+                  <li>300 mg vials @ 185 mg/mL (1.62 mL)</li>
                   <li>Start NS = 100 mL</li>
                   <li>Final NS = 125 mL</li>
                 </ul>
