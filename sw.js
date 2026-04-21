@@ -1,10 +1,9 @@
-const CACHE_NAME = 'imaavy-cache-v1';
+const CACHE_NAME = 'imaavy-cache-v2';
 const APP_SHELL = [
   '/',
   '/index.html',
   '/manifest.webmanifest',
-  '/icons/icon-192.png',
-  '/icons/icon-512.png',
+  '/icons/icon.svg',
 ];
 
 self.addEventListener('install', (e) => {
