@@ -1,0 +1,177 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Imaavy IV Dose Calculator</title>
+  <meta name="theme-color" content="#0a0a0a" />
+  <link rel="manifest" href="manifest.webmanifest" />
+  <link rel="icon" href="icons/icon-192.png" />
+  <style>
+    /* Minimal Tailwind-like styling subset */
+    html, body, #root { height: 100%; }
+    body { margin: 0; background:#0a0a0a; color:#e5e5e5; font-family: system-ui, -apple-system, Segoe UI, Roboto, Ubuntu, Cantarell, Noto Sans, Helvetica, Arial, 'Apple Color Emoji','Segoe UI Emoji'; overflow:hidden; }
+    .container { height:100%; display:flex; flex-direction:column; }
+    .center { flex:1 1 auto; display:flex; align-items:top; justify-content:center; padding:24px; }
+    .card { width:100%; max-width:640px; }
+    .h1 { font-size: 24px; font-weight: 600; letter-spacing: -0.01em; margin: 0 0 8px 0; }
+    .grid { display:grid; grid-template-columns: 1fr auto auto; gap:8px; align-items:center; margin-bottom: 16px; }
+    .label { font-size: 14px; color:#d4d4d8; }
+    .btn { padding:8px 12px; border-radius:16px; background:#1f2937; border:none; color:#e5e5e5; }
+    .btn:hover { background:#374151; cursor:pointer; }
+    .input { width:112px; text-align:right; padding:8px 12px; border-radius:16px; background:#111827; border:1px solid #1f2937; color:#e5e5e5; outline:none; }
+    .input:focus { box-shadow: 0 0 0 2px #6366f1; }
+    .table { width:100%; font-size:14px; background:#111827; border:1px solid #1f2937; border-radius:16px; overflow:hidden; }
+    .tr { border-bottom:1px solid #1f2937; }
+    .tdl { font-weight:600; padding:12px; color:#e5e7eb; vertical-align: top; }
+    .tdr { padding:12px; color:#f3f4f6; vertical-align: top; }
+    .footer { padding:10px 16px; text-align:center; font-size:12px; color:#9ca3af; border-top:1px solid #1f2937; }
+    .notes {
+      font-size: 0.85rem;
+      color: #666;
+      text-align: left;
+      margin: 1em 0 0 0;
+      padding-left: 0.5em;
+      list-style-position: inside;
+      line-height: 1.4;
+    }
+    .notes li {
+      margin-bottom: 0.3em;
+      font-weight: 400;
+    }
+    ul {
+      margin:6px 0 0 0;
+      padding-inline-start: 0;
+    }
+  </style>
+</head>
+<body>
+  <div id="root" class="container"></div>
+
+  <!-- React + Babel (for quick deploy without build step) -->
+  <script src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
+  <script src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
+  <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+
+  <script type="text/babel">
+    const { useState, useEffect, useMemo } = React;
+
+    // Constants
+    const MG_PER_KG = 10;
+    const VIAL_MG = 400;
+    const CONC_MG_PER_ML = 20;
+    const VIAL_ML = VIAL_MG / CONC_MG_PER_ML; // 20 mL
+    const MAX_DOSE_MG = 1200;
+    const NS_BAG_ML = 100;
+    const FINAL_VOL_ML = 125;
+
+    const formatMl = (n) => (Number.isFinite(n) ? n.toFixed(1) : "—");
+    const formatInt = (n) => (Number.isFinite(n) ? Math.round(n).toString() : "—");
+
+    function clampKg(v) {
+      const x = Math.round(v);
+      if (!Number.isFinite(x)) return null;
+      return Math.max(1, Math.min(300, x));
+    }
+
+    function Row({ label, value }) {
+      return (
+        <tr className="tr">
+          <td className="tdl">{label}</td>
+          <td className="tdr">{value}</td>
+        </tr>
+      );
+    }
+
+    function App() {
+      const [kg, setKg] = useState(null);
+      const [input, setInput] = useState("");
+      const results = useMemo(() => {
+        if (kg === null) return null;
+
+        const doseMgRaw = kg * MG_PER_KG;
+        const doseMg = Math.min(doseMgRaw, MAX_DOSE_MG);
+        const volMl = doseMg / CONC_MG_PER_ML;
+
+        const fullVials = Math.floor(doseMg / VIAL_MG);
+        const vials = Math.ceil(doseMg / VIAL_MG);
+        const remainderMg = doseMg % VIAL_MG;
+        const lastVialMl = remainderMg / CONC_MG_PER_ML;
+        const wasteMl = remainderMg === 0 ? 0 : VIAL_ML - lastVialMl;
+        const wasteMg = remainderMg === 0 ? 0 : VIAL_MG - remainderMg;
+
+        const removeNsMl = Math.max(0, volMl - (FINAL_VOL_ML - NS_BAG_ML));
+
+        return { doseMg, volMl, fullVials, vials, lastVialMl, wasteMl, wasteMg, removeNsMl };
+      }, [kg]);
+
+      return (
+        <div className="container">
+          <div className="center">
+            <div className="card">
+              <h1 className="h1">Imaavy IV Dose Calculator</h1>
+              <div className="grid">
+                <label htmlFor="kg" className="label">Patient mass (kg)</label>
+                <div style={{gridColumn: "span 2", display:"flex", gap:8, justifyContent:"end"}}>
+                  <input id="kg" className="input" type="text" inputMode="numeric" pattern="[0-9]*"
+                    value={input}
+                    onChange={(e) => {
+                      const val = e.target.value;
+                      if (val === "" || /^[0-9]+$/.test(val)) {
+                        setInput(val);
+                        if (val === "") setKg(null);
+                        else setKg(clampKg(parseInt(val, 10)));
+                      }
+                    }}
+                  />
+                  <button type="button" className="btn" aria-label="Clear input"
+                    onClick={() => {
+                      const input = document.getElementById("kg");
+                      setKg(null)
+                      setInput("");
+                      input.focus();
+                    }}>clear</button>
+                </div>
+              </div>
+
+              <table className="table">
+                <tbody>
+                  <Row label="Imaavy dose" value={results ? `${formatInt(results.doseMg)} mg` : "—"} />
+                  <Row label="Imaavy volume" value={results ? `${formatMl(results.volMl)} mL` : "—"} />
+                  <Row label="vials" value={results ? formatInt(results.vials) : "—"} />
+                  <Row label="volume from last vial" value={results && results.lastVialMl !== 0 ? `${formatMl(results.lastVialMl)} mL` : "—"} />
+                  <Row label="waste" value={results ? `${formatMl(results.wasteMg)} mg` : "—"} />
+                  <Row label="NS to remove" value={results ? `${formatMl(results.removeNsMl)} mL` : "—"} />
+                </tbody>
+              </table>
+              <div className="notes">
+                <ul>
+                  <li>Dosage: 10 mg/kg</li>
+                  <li>400 mg vials @ 20 mg/mL (20 mL)</li>                  
+                  <li>Dose capped at 1200 mg (3 vials)</li>
+                  <li>Start NS = 100 mL</li>
+                  <li>Final NS = 125 mL</li>
+                </ul>
+              </div>
+            </div>
+          </div>
+
+          <div className="footer" aria-hidden="true">
+            Not medical advice. Use at your own risk.<br/>
+            Imaavy is a registered trademark of Johnson & Johnson; no affiliation.
+          </div>
+        </div>
+      );
+    }
+
+    const root = ReactDOM.createRoot(document.getElementById('root'));
+    root.render(<App />);
+  </script>
+
+  <script>
+    if ('serviceWorker' in navigator) {
+      navigator.serviceWorker.register('sw.js');
+    }
+  </script>
+</body>
+</html>
