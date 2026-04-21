@@ -43,6 +43,22 @@
       margin:6px 0 0 0;
       padding-inline-start: 0;
     }
+    .dose-type { display:flex; gap:8px; margin-bottom:16px; }
+    .dose-radio { position:absolute; opacity:0; width:0; height:0; }
+    .dose-pill {
+      display:flex; align-items:center; gap:7px;
+      padding:8px 14px; border-radius:16px;
+      border:2px solid #1f2937;
+      cursor:pointer; font-size:14px; color:#6b7280;
+      user-select:none; -webkit-tap-highlight-color: transparent;
+      transition: border-color 0.15s, color 0.15s, background 0.15s;
+    }
+    .dose-pill--selected { border-color:#6366f1; color:#e5e5e5; background:#1e1b4b; }
+    .dose-dot {
+      width:8px; height:8px; border-radius:50%; flex-shrink:0;
+      border:2px solid #4b5563; transition: background 0.15s, border-color 0.15s;
+    }
+    .dose-pill--selected .dose-dot { background:#6366f1; border-color:#6366f1; }
   </style>
 </head>
 <body>
@@ -57,7 +73,8 @@
     const { useState, useEffect, useMemo } = React;
 
     // Constants
-    const MG_PER_KG = 10;
+    const LOADING_MG_PER_KG = 30;
+    const MAINTENANCE_MG_PER_KG = 15;
     const VIAL_MG = 400;
     const CONC_MG_PER_ML = 20;
     const VIAL_ML = VIAL_MG / CONC_MG_PER_ML; // 20 mL
@@ -86,10 +103,11 @@
     function App() {
       const [kg, setKg] = useState(null);
       const [input, setInput] = useState("");
+      const [doseType, setDoseType] = useState("maintenance");
       const results = useMemo(() => {
         if (kg === null) return null;
-
-        const doseMgRaw = kg * MG_PER_KG;
+        const mgPerKg = doseType === "loading" ? LOADING_MG_PER_KG : MAINTENANCE_MG_PER_KG;
+        const doseMgRaw = kg * mgPerKg;
         const doseMg = Math.min(doseMgRaw, MAX_DOSE_MG);
         const volMl = doseMg / CONC_MG_PER_ML;
 
@@ -103,13 +121,23 @@
         const removeNsMl = Math.max(0, volMl - (FINAL_VOL_ML - NS_BAG_ML));
 
         return { doseMg, volMl, fullVials, vials, lastVialMl, wasteMl, wasteMg, removeNsMl };
-      }, [kg]);
+      }, [kg, doseType]);
 
       return (
         <div className="container">
           <div className="center">
             <div className="card">
               <h1 className="h1">Imaavy IV Dose Calculator</h1>
+              <div className="dose-type">
+                {[["maintenance", "Maintenance"], ["loading", "Loading"]].map(([value, label]) => (
+                  <label key={value} className={`dose-pill${doseType === value ? " dose-pill--selected" : ""}`}>
+                    <input type="radio" name="doseType" value={value} checked={doseType === value}
+                      onChange={() => setDoseType(value)} className="dose-radio" />
+                    <span className="dose-dot" />
+                    {label}
+                  </label>
+                ))}
+              </div>
               <div className="grid">
                 <label htmlFor="kg" className="label">Patient mass (kg)</label>
                 <div style={{gridColumn: "span 2", display:"flex", gap:8, justifyContent:"end"}}>
@@ -146,7 +174,8 @@
               </table>
               <div className="notes">
                 <ul>
-                  <li>Dosage: 10 mg/kg</li>
+                  <li>Loading dose: 30 mg/kg</li>
+                  <li>Maintenance dose: 15 mg/kg</li>
                   <li>400 mg vials @ 20 mg/mL (20 mL)</li>                  
                   <li>Dose capped at 1200 mg (3 vials)</li>
                   <li>Start NS = 100 mL</li>
