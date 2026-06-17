@@ -1,9 +1,9 @@
 const CACHE_NAME = 'imaavy-cache-v3';
 const APP_SHELL = [
-  '/',
-  '/index.html',
-  '/manifest.webmanifest',
-  '/icons/icon.svg',
+  './',
+  './index.html',
+  './manifest.webmanifest',
+  './icons/icon.svg',
 ];
 
 self.addEventListener('install', (e) => {
